@@ -1,6 +1,16 @@
 """
 Module for timeseries analysis.
 """
+from statsmodels.tsa import seasonal_decompose
+
+from statsmodels.tsa import seasonal_mean
+"""
+Return means for each period in x. freq is an int that gives the
+number of periods per cycle. E.g., 12 for monthly. NaNs are ignored
+in the mean.
+
+return np.array([pd_nanmean(x[i::freq], axis=0) for i in range(freq)])
+"""
 
 def ts_plot(y, lags=None, title=''):
     '''
