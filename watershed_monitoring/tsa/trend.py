@@ -1,6 +1,34 @@
 """
 Tests for trends in time series data
 
+Nonparametric Trend Tests
+-------------------------
+Nonparametric tests should be used where one or more of the following
+conditions exist in the data.
+
+    1. The data are nonnormal.
+
+    2. There are missing values in the data.
+
+    3. The data are censored. Censored data are those observations report
+    at as being less than or greater than some threshold value.
+
+In some cases, it may be remove the affect of covariates from a trend test.
+With such methods, the variable under consideration is adjusted by one or
+several covariates by building a regression model and applying the trend test
+to the residuals. A common example of this approach is flow-normalization,
+which attempts to remove the effect of natural variablity in flow on the
+concentration of a particular constituent in a stream.  Nonparametric
+procedures cannot be applied to flow-adjusted records containing censored data
+since regression residuals cannot be computed for censored values (Hirsch et
+al., 1991).
+
+References
+----------
+.. [1] Hirsch, R.M., R.B. Alexander, R.A. Smith. 1991. Selection of Methods
+       for the Detection and Estimation of Trends in Water Quality Data.
+       Water Resources Research.
+
 Resources
 ----------
 .. [1] https://up-rs-esp.github.io/mkt/#
@@ -13,8 +41,141 @@ import numpy as np
 
 from scipy.stats import mannwhitneyu, norm
 
+def partial_mann_kendall(x,y):
+    """Partial Mann-Kendall Trend Test
+
+    A nonparametric test for a monotonic trend, which accounts for the influences of a covariate.
+
+    Paramters
+    ---------
+    x : array
+        A chronologically ordered sequence of observations.
+    y : array
+        Coincident observations of a covariate.
+
+    Returns
+    -------
+
+    Note
+    ----
+    Does not yet account for ties.
+
+    References
+    ----------
+    .. [1] Libiseller, C. and Grimvall, A., (2002). Performance of partial
+    Mann-Kendall tests for trend detection in the presence of covariates.
+    Environmetrics 13, 71--84, \url{http://dx.doi.org/10.1002/env.507}.
+
+    Attribution
+    -----------
+    """
+
+    # test that x and y are the same length
+
+    # coumpute MK scores
+    s_x = mk_score(x)
+    s_y = mk_score(y)
+
+def pmk_k(x,y):
+    """Calculate the K term of the Partial Mann Kendall test.
+
+    Parameters
+    ----------
+    x : array
+    y : array
+
+    Returns
+    -------
+    K term of the PMK test.
+    """
+    n = len(x)
+    k = 0
+
+    for i in np.arange(1:n-1):
+
+def pmk_r(x):
+    """Calculate the R term of the Partial Mann Kendall test.
+
+    Parameters
+    ----------
+    x : array
+        A chronologically ordered sequence of observations.
+
+    Returns
+    -------
+    An array of R values used in determing conditional covariance.
+    """
+    n = len(x)
+    r = np.zeroes_like(x)
+
+    for j in np.arange(1,n):
+        s = 0
+
+        for i in np.arange(1,n):
+            s += np.sum(np.sign(x[j] - x[i]))
+            r[j] = (n+1+s)/2
+
+    return r
+
+
+def ar1_trend_correction(rho, n=None):
+    """Coefficient to correct trend statistics for autocorrelation.
+
+    Used to adjust the variance or standard deviation of the trend statistic in
+    MDC or variaous trend tests.  Only appropriate for data exhibiting AR(1)
+    structure, which is typical for water quality data collected at weekly,
+    biweekly, or mothly intervals. Higher-frequency data should be tested for
+    higher-order AR terms, and may require aggregation.
+
+    To apply the correction, multiply the variance by coefficient, or mulitply
+    the standard deviation by the square root of the coefficient.
+
+
+    Parameters
+    ----------
+    rho : float
+        Autocorrelation coefficient at lag 1.
+
+    n : int
+        Sample size. Can be ignored for large sample sizes.
+
+    Returns
+    -------
+    Correction coefficient. Take the square root when used to correct standard deviation.
+
+
+    References
+    ----------
+    .. [1] Spooner et al. 2011. Tech Notes 6: Statistical Analysis for Monotonic Trends.
+           USEPA.
+    .. [2] Fuller, W.A. 1976. Introduction to Statistical Time Series.
+           John Wiley & Sons, Inc. New York.
+    .. [3] Matalas, N.C. and W.B. Langbein. 1962. Information content of the mean.
+           Journal of Geophysical Research 67(9):3441-34498
+    """
+    c = (1+rho)/(1-rho)
+
+    if n is not None:
+        # apply correction for sample size
+        c -= (2/n)*(rho*(1-rho**n))/((1-rho)**2)
+
+    return c
+
+
 def mk_z(s, var_s):
-    """ Compoutes the MK test statistic, Z.
+    """Compoutes the MK test statistic, Z.
+
+    Parameters
+    ----------
+    s : float
+        The MK trend statistic, S.
+
+    var_s : float
+        Variance of S.
+
+    Returns
+    -------
+    MK test statistic, Z.
     """
     #calculate the MK test statistic
     if s > 0:
@@ -27,27 +188,51 @@ def mk_z(s, var_s):
     return z
 
 
-def mk_s(x):
-    """ Computes S statistic used in Mann-Kendall tests.
+def mk_score(x):
+    """Computes S statistic used in Mann-Kendall tests.
 
     Parameters
     ----------
     x : array_like
+        Chronologically ordered array of observations.
+
+    Returns
+    -------
+    MK trend statistic (S).
+
+    Formula
+    -------
+	The MK statistic is defined as
+
+		.. math::
+			S = \sum_{i<j} (x_i - x_j)
+
+	where
+		..math::
+
+			sgn(x_i - x_j) &=
+            \begin{cases}
+                        1,  & x_i - x_j > 0\\
+                        0,  & x_i - x_j = 0\\
+                        -1, & x_i - x_j < 0
+            \end{cases},
+
+	which tells us whether the difference between the measurements at time
+	:math:`i` and :math:`j` are positive, negative or zero.
     """
     n = len(x)
     s = 0
 
-    for k in range(n-1):
-        for j in range(k+1, n):
-            s += np.sign(x[j] - x[k])
+    for j in np.arange(1,n):
+        s += np.sum(np.sign(x[j] - x[0:j]))
 
     return s
 
 
-def mk_var_s(x):
-    """ Computes corrected variance of S statistic used in Mann-Kendall tests.
+def mk_score_variance(x):
+    """Computes corrected variance of S statistic used in Mann-Kendall tests.
 
-    Equation 8.4 from Helsel and Hirsch (2002)
+    Equation 8.4 from Helsel and Hirsch (2002). Also see XXX
 
     Parameters
     ----------
@@ -58,6 +243,19 @@ def mk_var_s(x):
     Variance of S statistic
 
     Formula
+    -------
+    The variance :math:`Var(S)` is often given as:
+
+        .. math::
+            VAR(S) = \frac{1}{18} \Big( n(n-1)(2n+5) - \sum_{k=1}^p
+            q_k(q_k-1)(2q_k+5) \Big),
+
+    where :math:`p` is the total number of tie groups in the data, and :math:`q_k`
+    is the number of data points contained in the :math:`k`-th tie group.
+
+    Note that this might be equivalent to:
+
+        See page 728 of Hirsch and Slack
 
     References
     ----------
@@ -83,7 +281,7 @@ def mk_var_s(x):
 
 
 def kendall(x, alpha=0.05):
-    """ Mann-Kendall (MK) is a nonparametric test for monotonic trend.
+    """Mann-Kendall (MK) is a nonparametric test for monotonic trend.
 
     Parameters
     ----------
@@ -133,8 +331,8 @@ def kendall(x, alpha=0.05):
     """
     n = len(x)
 
-    s = mk_s(x)
-    var_s = mk_var_s(x)
+    s = mk_score(x)
+    var_s = mk_score_variance(x)
 
     z = mk_z(s, var_s)
     # calculate the p_value
@@ -148,13 +346,14 @@ def seasonal_kendall(x, period=12):
     Parameters
     ----------
     x : array
-        Chronologically sorted observations. Must have fixed frequency.
+        A sequence of chronologically ordered observations with fixed
+        frequency.
 
     period : int
         The number of observations that define period. This is the number of seasons.
 
     Background
-    ==========
+    ----------
     The purpose of the Seasonal Kendall (SK) test (described in Hirsch, Slack
     and Smith 1982, Gilbert 1987, and Helsel and Hirsch 1995) is to test for a
     monotonic trend of the variable of interest when the data collected over
@@ -184,7 +383,7 @@ def seasonal_kendall(x, period=12):
     rather than assume the exact distribution is a standard normal distribution.
 
     Assumptions
-    ===========
+    -----------
     The following assumptions underlie the SK test:
 
     1. When no trend is present the observations are not serially correlated
@@ -211,7 +410,7 @@ def seasonal_kendall(x, period=12):
     serial correlation over time is present.
 
     References
-    ==========
+    ----------
     Gilbert, R.O. 1987. Statistical Methods for Environmental Pollution
     Monitoring. Wiley, NY.
 
@@ -225,20 +424,16 @@ def seasonal_kendall(x, period=12):
     for Monthly Water Quality Data. Water Resources Research 18(1):107-121.
 
     Attribution
-    ===========
+    -----------
     Text copied from
     https://vsp.pnnl.gov/help/vsample/Design_Trend_Seasonal_Kendall.htm
     """
-    # list the data obtained for the i^th moth in the order in which they were
-    # collected
-
-    # determine the sign of all n_i(n_i -1)/2 possible differences
     # Compute the SK statistic, S, for each season
     s = np.zeros(period)
     for season in np.arange(period):
         x_season = x[period::period]
-        s += mk_s(x)
-        var_s += mk_var_s(x)
+        s += mk_score(x)
+        var_s += mk_score_variance(x)
 
     # Compute the SK test statistic, Z, for each season.
     z = mk_z(s, var_s)
