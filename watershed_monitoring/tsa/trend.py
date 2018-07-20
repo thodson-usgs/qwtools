@@ -1,9 +1,10 @@
 """
 Tests for trends in time series data
 
-References
+Resources
 ----------
-https://up-rs-esp.github.io/mkt/# for Sphinx doc example
+.. [1] https://up-rs-esp.github.io/mkt/#
+.. [2] https://cran.r-project.org/web/packages/trend/vignettes/trend.pdf
 """
 
 import pandas as pd
@@ -15,7 +16,15 @@ from scipy.stats import mannwhitneyu, norm
 def mk_z(s, var_s):
     """ Compoutes the MK test statistic, Z.
     """
-    pass
+    #calculate the MK test statistic
+    if s > 0:
+        z = (s - 1)/np.sqrt(var_s)
+    elif s < 0:
+        z = (s + 1)/np.sqrt(var_s)
+    else: # s == 0:
+        z = 0
+
+    return z
 
 
 def mk_s(x):
@@ -80,8 +89,6 @@ def kendall(x, alpha=0.05):
     ----------
     x : array
     Data in the order it was collected in time.
-    alpha : float
-        Significance level (0.05 default)
 
     Returns
     -------
@@ -129,31 +136,22 @@ def kendall(x, alpha=0.05):
     s = mk_s(x)
     var_s = mk_var_s(x)
 
-    #calculate the MK test statistic
-    if s > 0:
-        z = (s - 1)/np.sqrt(var_s)
-    elif s < 0:
-        z = (s + 1)/np.sqrt(var_s)
-    else: # s == 0:
-        z = 0
-
+    z = mk_z(s, var_s)
     # calculate the p_value
     p = 2*(1-norm.cdf(abs(z)))  # two tail test
 
     return z, p
 
-def seasonal_kendall(x, freq=12, alpha=.05):
+def seasonal_kendall(x, period=12):
     """ Seasonal nonparametric test for detecting a monotonic trend.
 
     Parameters
     ----------
     x : array
+        Chronologically sorted observations. Must have fixed frequency.
 
-    freq : int
-
-    alpha : float
-         Significane level. The tolerable probability the stakeholders can accept that the test
-         will falsely reject the null hypothesis.
+    period : int
+        The number of observations that define period. This is the number of seasons.
 
     Background
     ==========
@@ -178,10 +176,7 @@ def seasonal_kendall(x, freq=12, alpha=.05):
     The SK test was proposed by Hirsch, Slack and Smith (1982) for use with 12
     seasons (months). The SK test may also be used for other seasons, for
     example, the four quarters of the year, the three 8-hour periods of the day,
-    and the 52 weeks of the year. VSP assumes that the method described below
-    (using the standard normal distribution to test if a trend is present based
-    on the computed SK test statistic) is valid for any definition of season
-    (week, month, 8-hr periods, hours of the day) that may be used. Hirsch,
+    and the 52 weeks of the year. Hirsch,
     Slack and Smith (1982) showed that it is appropriate to use the standard
     normal distribution to conduct the SK test for monthly data when there are 3
     or more years of monthly data. For any combination of seasons and years they
@@ -238,10 +233,20 @@ def seasonal_kendall(x, freq=12, alpha=.05):
     # collected
 
     # determine the sign of all n_i(n_i -1)/2 possible differences
+    # Compute the SK statistic, S, for each season
+    s = np.zeros(period)
+    for season in np.arange(period):
+        x_season = x[period::period]
+        s += mk_s(x)
+        var_s += mk_var_s(x)
 
-    # Compute the SK test statistic
-    z_sk = 0
-    pass
+    # Compute the SK test statistic, Z, for each season.
+    z = mk_z(s, var_s)
+
+    # calculate the p_value
+    p = 2*(1-norm.cdf(abs(z)))  # two tail test
+
+    return z, p
 
 
 def seasonal_rank_sum():
