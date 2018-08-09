@@ -65,9 +65,6 @@ def partial_mann_kendall(x,y):
     .. [1] Libiseller, C. and Grimvall, A., (2002). Performance of partial
     Mann-Kendall tests for trend detection in the presence of covariates.
     Environmetrics 13, 71--84, \url{http://dx.doi.org/10.1002/env.507}.
-
-    Attribution
-    -----------
     """
 
     # test that x and y are the same length
@@ -75,6 +72,7 @@ def partial_mann_kendall(x,y):
     # coumpute MK scores
     s_x = mk_score(x)
     s_y = mk_score(y)
+
 
 def pmk_k(x,y):
     """Calculate the K term of the Partial Mann Kendall test.
@@ -91,7 +89,8 @@ def pmk_k(x,y):
     n = len(x)
     k = 0
 
-    for i in np.arange(1:n-1):
+    for i in np.arange(1,n-1):
+        pass #TODO
 
 def pmk_r(x):
     """Calculate the R term of the Partial Mann Kendall test.
