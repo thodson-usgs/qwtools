@@ -39,7 +39,51 @@ import pandas as pd
 import numpy as np
 
 
-from scipy.stats import mannwhitneyu, norm
+from scipy.stats import mannwhitneyu, norm, rankdata
+
+def pettitt(x):
+    """Pettitt's change-point test
+
+    A nonparameteric test for detecting change points in a time series.
+
+    Parameters
+    ----------
+    x : array_like
+
+    Return
+    ------
+
+    Formula
+    -------
+	The non-parametric statistic is defined as
+
+		.. math::
+			K_t = \max\abs{U_{T,j}}
+        
+	where
+		.. math::
+            U_{T,j} = \sum_sum{i=1}^{t}\sum_{j=t+1}^{T} sgn(X_i - X_j)
+    
+    The change point of the series is located at K_t, provided that the
+    statistic is significant.
+    """
+    U_t = np.zeros_like(x)
+    n = len(x)
+
+    #for i in np.arange(n):
+    #    for j in np.arange(i+1):
+    #        U_t[i] += np.sum(np.sign(x[j] - x[i+1:]))
+    # alternative from
+    r = rankdata(x)
+    for i in np.arange(n):
+        U_t[i] = 2 * np.sum(r[:i+1]) - (i+1)*(n-1)
+    #K_t = np.max(np.abs(U_t))
+    t = np.argmax(np.abs(U_t))
+    K_t = U_t[t]
+    
+    p = 2.0 * np.exp((-6.0 * K_t**2)/(n**3 + n**2))
+    return t, p
+
 
 def partial_mann_kendall(x,y):
     """Partial Mann-Kendall Trend Test
@@ -59,7 +103,7 @@ def partial_mann_kendall(x,y):
     Note
     ----
     Does not yet account for ties.
-
+    
     References
     ----------
     .. [1] Libiseller, C. and Grimvall, A., (2002). Performance of partial
