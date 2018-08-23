@@ -175,3 +175,33 @@ def fdc(discharge, ax=None, label_conditions=False, flow_unit='cfs'):
 
     if label_conditions==True:
         label_dc_flow_conditions(ax)
+
+
+def cumulative_frequency_diagram(concentration, discharge, ax=None, label=None):
+    """
+    Plot cumulative load and time
+    Parameters
+    ----------
+    concentration
+    discharge
+    ax
+    label
+
+    Returns
+    -------
+
+    """
+    load = concentration * discharge
+    load = load.sort_values()
+    cumsum = load.cumsum() / load.sum()
+    cumsum = cumsum.dropna().values
+    percentile = np.arange(load.count()) / load.count()
+
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    ax.plot(percentile * 100, cumsum * 100, label=label)
+    ax.grid(axis='both', linestyle=':')
+    ax.set_ylabel('Load (%)')
+    ax.set_xlabel('Time (%)')
+    ax.legend()
