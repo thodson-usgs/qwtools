@@ -41,6 +41,40 @@ import numpy as np
 
 from scipy.stats import mannwhitneyu, norm, rankdata
 
+def sen_slope(x):
+    """A nonparametric estimate of trend.
+
+    Background
+    ----------
+    Helsel and Hirsch (1995) show how to compute a nonparametric estimate of a
+    linear line using the Kendall-Theil method when there are no seasonal
+    differences in the trend. This method does not require that the residuals
+    about the line be normally distributed. The estimate of the slope for the
+    line was first developed by Theil (1950) and is discussed by Sen (1968) and
+    illustrated in Gilbert (1987, pages 217-218). The intercept of the line is
+    estimated using the method in Conover (1999, page 336). Neither the
+    estimate of the slope or intercept is strongly affected by outliers. It is
+    possible to estimate the slope if there are missing data or when less than
+    20% of the measurements are reported as less than the detection limit
+    (Helsel and Hirsch 1995, page 371). - From [1]
+
+    Resources
+    ---------
+    .. [1] https://vsp.pnnl.gov/help/vsample/nonparametric_estimate_of_trend.htm
+    """
+    n = len(x)
+    s = np.zeros(int(n*(n-1)/2))
+    i = 0
+    for j in np.arange(1,n):
+        s[i:j+i] = (x[j] - x[0:j])/np.arange(1,j+1)
+        i += j
+
+    return np.nanmedian(s)
+
+
+def seasonal_sen_slope(x):
+    pass
+
 def pettitt(x):
     """Pettitt's change-point test
 
@@ -59,11 +93,11 @@ def pettitt(x):
 
 		.. math::
 			K_t = \max\abs{U_{T,j}}
-        
+
 	where
 		.. math::
             U_{T,j} = \sum_sum{i=1}^{t}\sum_{j=t+1}^{T} sgn(X_i - X_j)
-    
+
     The change point of the series is located at K_t, provided that the
     statistic is significant.
     """
@@ -80,7 +114,7 @@ def pettitt(x):
     #K_t = np.max(np.abs(U_t))
     t = np.argmax(np.abs(U_t))
     K_t = U_t[t]
-    
+
     p = 2.0 * np.exp((-6.0 * K_t**2)/(n**3 + n**2))
     return t, p
 
@@ -103,14 +137,7 @@ def partial_mann_kendall(x,y):
     Note
     ----
     Does not yet account for ties.
-    
-    References
-    ----------
-    .. [1] Libiseller, C. and Grimvall, A., (2002). Performance of partial
-    Mann-Kendall tests for trend detection in the presence of covariates.
-    Environmetrics 13, 71--84, \url{http://dx.doi.org/10.1002/env.507}.
     """
-
     # test that x and y are the same length
 
     # coumpute MK scores
