@@ -41,7 +41,7 @@ import numpy as np
 
 from scipy.stats import mannwhitneyu, norm, rankdata
 
-def sen_slope(x):
+def sen_slope(x, alpha=None):
     """A nonparametric estimate of trend.
 
     Background
@@ -63,14 +63,23 @@ def sen_slope(x):
     .. [1] https://vsp.pnnl.gov/help/vsample/nonparametric_estimate_of_trend.htm
     """
     n = len(x)
-    s = np.zeros(int(n*(n-1)/2))
+    N = int(n*(n-1)/2) # number of slope estimates
+    s = np.zeros(N)
     i = 0
     for j in np.arange(1,n):
         s[i:j+i] = (x[j] - x[0:j])/np.arange(1,j+1)
         i += j
 
-    return np.nanmedian(s)
+    s.sort()
+    #confidence limits
+    if alpha:
+        C_alpha = norm.ppf(1-alpha/2)*np.sqrt(np.nanvar(x))
+        U = int(np.round(1 + (N + C_alpha)/2))
+        L = int(np.round((N - C_alpha)/2))
+        return np.nanmedian(s), s[L], s[U]
 
+    else:
+        return np.nanmedian(s)
 
 def seasonal_sen_slope(x):
     pass
@@ -128,7 +137,7 @@ def partial_mann_kendall(x,y):
     ---------
     x : array
         A chronologically ordered sequence of observations.
-    y : array
+    y : arrayG
         Coincident observations of a covariate.
 
     Returns
