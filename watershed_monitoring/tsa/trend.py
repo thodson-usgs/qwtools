@@ -114,7 +114,7 @@ def seasonal_sens_slope(x, period=12, alpha=None):
 
 
 
-def pettitt(x):
+def pettitt(x, alpha=0.05):
     """Pettitt's change-point test
 
     A nonparameteric test for detecting change points in a time series.
@@ -125,7 +125,6 @@ def pettitt(x):
 
     Return
     ------
-
     Formula
     -------
 	The non-parametric statistic is defined as
@@ -143,19 +142,19 @@ def pettitt(x):
     U_t = np.zeros_like(x)
     n = len(x)
 
-    #for i in np.arange(n):
-    #    for j in np.arange(i+1):
-    #        U_t[i] += np.sum(np.sign(x[j] - x[i+1:]))
-    # alternative from
     r = rankdata(x)
     for i in np.arange(n):
         U_t[i] = 2 * np.sum(r[:i+1]) - (i+1)*(n-1)
-    #K_t = np.max(np.abs(U_t))
+
     t = np.argmax(np.abs(U_t))
     K_t = U_t[t]
 
     p = 2.0 * np.exp((-6.0 * K_t**2)/(n**3 + n**2))
-    return t, p
+
+    if p > alpha:
+        return t
+    else:
+        return np.nan
 
 
 def partial_mann_kendall(x,y):
