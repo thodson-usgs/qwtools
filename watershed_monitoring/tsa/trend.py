@@ -41,7 +41,20 @@ import numpy as np
 
 from scipy.stats import mannwhitneyu, norm, rankdata
 
-def sen_slope(x, alpha=None):
+
+def sens_diff(x):
+
+    n = len(x)
+    N = int(n*(n-1)/2)  # number of slope estimates
+    s = np.zeros(N)
+    i = 0
+    for j in np.arange(1, n):
+        s[i:j+i] = (x[j] - x[0:j])/np.arange(1, j+1)
+        i += j
+
+    return s
+
+def sens_slope(x, alpha=None):
     """A nonparametric estimate of trend.
 
     Background
@@ -62,17 +75,11 @@ def sen_slope(x, alpha=None):
     ---------
     .. [1] https://vsp.pnnl.gov/help/vsample/nonparametric_estimate_of_trend.htm
     """
-    n = len(x)
-    N = int(n*(n-1)/2) # number of slope estimates
-    s = np.zeros(N)
-    i = 0
-    for j in np.arange(1,n):
-        s[i:j+i] = (x[j] - x[0:j])/np.arange(1,j+1)
-        i += j
-
+    s = sens_diff(x)
     s.sort()
-    #confidence limits
+
     if alpha:
+        # calculate confidence limits
         C_alpha = norm.ppf(1-alpha/2)*np.sqrt(np.nanvar(x))
         U = int(np.round(1 + (N + C_alpha)/2))
         L = int(np.round((N - C_alpha)/2))
@@ -81,8 +88,31 @@ def sen_slope(x, alpha=None):
     else:
         return np.nanmedian(s)
 
-def seasonal_sen_slope(x):
-    pass
+
+def seasonal_sens_slope(x, period=12, alpha=None):
+    """
+    """
+    s = sens_diff(x[0::period])
+
+    for season in np.arange(1, period):
+        x_season = x[season::period]
+        s = np.append(s, sens_diff(x_season))
+
+    s.sort()
+
+    if alpha:
+        #  XXX This code needs to be verified
+        N = len(s)
+        # calculate confidence limits
+        C_alpha = norm.ppf(1-alpha/2)*np.sqrt(np.nanvar(x))
+        U = int(np.round(1 + (N + C_alpha)/2))
+        L = int(np.round((N - C_alpha)/2))
+        return np.nanmedian(s), s[L], s[U]
+
+    else:
+        return np.nanmedian(s)
+
+
 
 def pettitt(x):
     """Pettitt's change-point test
@@ -169,8 +199,9 @@ def pmk_k(x,y):
     n = len(x)
     k = 0
 
-    for i in np.arange(1,n-1):
-        pass #TODO
+    for i in np.arange(1, n-1):
+        pass  # TODO
+
 
 def pmk_r(x):
     """Calculate the R term of the Partial Mann Kendall test.
@@ -187,10 +218,10 @@ def pmk_r(x):
     n = len(x)
     r = np.zeroes_like(x)
 
-    for j in np.arange(1,n):
+    for j in np.arange(1, n):
         s = 0
 
-        for i in np.arange(1,n):
+        for i in np.arange(1, n):
             s += np.sum(np.sign(x[j] - x[i]))
             r[j] = (n+1+s)/2
 
@@ -256,12 +287,12 @@ def mk_z(s, var_s):
     -------
     MK test statistic, Z.
     """
-    #calculate the MK test statistic
+    # calculate the MK test statistic
     if s > 0:
         z = (s - 1)/np.sqrt(var_s)
     elif s < 0:
         z = (s + 1)/np.sqrt(var_s)
-    else: # s == 0:
+    else:
         z = 0
 
     return z
@@ -302,7 +333,7 @@ def mk_score(x):
     n = len(x)
     s = 0
 
-    for j in np.arange(1,n):
+    for j in np.arange(1, n):
         s += np.sum(np.sign(x[j] - x[0:j]))
 
     return s
@@ -415,9 +446,10 @@ def kendall(x, alpha=0.05):
 
     z = mk_z(s, var_s)
     # calculate the p_value
-    p = 2*(1-norm.cdf(abs(z)))  # two tail test
+    p_value = 2*(1-norm.cdf(abs(z)))  # two tail test
 
-    return z, p
+    return p_value
+
 
 def seasonal_kendall(x, period=12):
     """ Seasonal nonparametric test for detecting a monotonic trend.
@@ -454,12 +486,12 @@ def seasonal_kendall(x, period=12):
     The SK test was proposed by Hirsch, Slack and Smith (1982) for use with 12
     seasons (months). The SK test may also be used for other seasons, for
     example, the four quarters of the year, the three 8-hour periods of the day,
-    and the 52 weeks of the year. Hirsch,
-    Slack and Smith (1982) showed that it is appropriate to use the standard
-    normal distribution to conduct the SK test for monthly data when there are 3
-    or more years of monthly data. For any combination of seasons and years they
-    also show how to determine the exact distribution of the SK test statistic
-    rather than assume the exact distribution is a standard normal distribution.
+    and the 52 weeks of the year. Hirsch, Slack and Smith (1982) showed that it
+    is appropriate to use the standard normal distribution to conduct the SK
+    test for monthly data when there are 3 or more years of monthly data. For
+    any combination of seasons and years they also show how to determine the
+    exact distribution of the SK test statistic rather than assume the exact
+    distribution is a standard normal distribution.
 
     Assumptions
     -----------
@@ -508,19 +540,22 @@ def seasonal_kendall(x, period=12):
     https://vsp.pnnl.gov/help/vsample/Design_Trend_Seasonal_Kendall.htm
     """
     # Compute the SK statistic, S, for each season
-    s = np.zeros(period)
+    #s = np.zeros(period)
+    s = 0
+    var_s = 0
+
     for season in np.arange(period):
-        x_season = x[period::period]
-        s += mk_score(x)
-        var_s += mk_score_variance(x)
+        x_season = x[season::period]
+        s += mk_score(x_season)
+        var_s += mk_score_variance(x_season)
 
     # Compute the SK test statistic, Z, for each season.
     z = mk_z(s, var_s)
 
     # calculate the p_value
-    p = 2*(1-norm.cdf(abs(z)))  # two tail test
+    p_value = 2*(1-norm.cdf(abs(z)))  # two tail test
 
-    return z, p
+    return p_value
 
 
 def seasonal_rank_sum():
@@ -631,7 +666,7 @@ def mannwhitney(x, y, use_continuity=True, alternative=None):
            Variables is Stochastically Larger than the Other," The Annals of
            Mathematical Statistics, vol. 18, no. 1, pp. 50-60, 1947.
     """
-    mannwhitneyu(x,y, use_continuity, alternative)
+    mannwhitneyu(x, y, use_continuity, alternative)
 
 def check_num_samples(beta, delta, std_dev, alpha=0.05, n=4, num_iter=1000,
                       tol=1e-6, num_cycles=10000, m=5):
