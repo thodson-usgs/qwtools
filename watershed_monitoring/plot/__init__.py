@@ -1,9 +1,15 @@
 """
 Module for timeseries analysis.
 """
-from statsmodels.tsa import seasonal_decompose
+import pandas as pd
 
-from statsmodels.tsa import seasonal_mean
+import matplotlib.pyplot as plt
+
+import statsmodels.api as sm
+import statsmodels.tsa.api as smt
+
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.seasonal import seasonal_mean
 """
 Return means for each period in x. freq is an int that gives the
 number of periods per cycle. E.g., 12 for monthly. NaNs are ignored
@@ -11,6 +17,48 @@ in the mean.
 
 return np.array([pd_nanmean(x[i::freq], axis=0) for i in range(freq)])
 """
+def qc_plot(df, q_col, c_col,
+            q_label=None,
+            c_label=None,
+            normalized=False, 
+            ax=None):
+    """Plot flow versus concentration.
+
+    Parameters
+    ----------
+    df : DataFrame
+
+    q : string
+        Flow column
+    c : string
+        Concentration column name
+    """
+    if q_label is None:
+        q_label = q_col
+    
+    if c_label is None:
+        c_label = c_col
+
+    if ax is not None:
+        plt.sca(ax)
+        fig = plt.gca().figure
+    else:
+        fig, ax = plt.subplots()
+
+    df = df.copy().dropna(subset=[q_col,c_col])
+
+    ax.plot(df[q_col], df[c_col], lw=0.3, color='k', alpha=0.8, zorder=1)
+    cs = ax.scatter(df[q_col], df[c_col] , c=df.index, cmap='magma', alpha=1,
+        zorder=2)
+
+    ax.set_xlabel(q_label)
+    ax.set_ylabel(c_label)
+    cbar = fig.colorbar(cs)
+    cbar.set_label(r'Time $\longrightarrow$')
+    cbar.set_ticks([])
+
+    plt.sci(cs)
+    return
 
 def ts_plot(y, lags=None, title=''):
     '''
@@ -53,8 +101,8 @@ def ts_plot(y, lags=None, title=''):
     qq_ax.set_title('Normal QQ Plot')
 
     # hist plot
-    y.plot(ax=hist_ax, kind='hist', bins=25);
-    hist_ax.set_title('Histogram');
-    plt.tight_layout();
+    y.plot(ax=hist_ax, kind='hist', bins=25)
+    hist_ax.set_title('Histogram')
+    plt.tight_layout()
     plt.show()
     return
