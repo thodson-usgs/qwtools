@@ -1,6 +1,0 @@
-README.md
-watershed_monitoring.egg-info/PKG-INFO
-watershed_monitoring.egg-info/SOURCES.txt
-watershed_monitoring.egg-info/dependency_links.txt
-watershed_monitoring.egg-info/not-zip-safe
-watershed_monitoring.egg-info/top_level.txt
