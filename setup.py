@@ -1,11 +1,11 @@
 from setuptools import setup
 
-setup(name='watershed_monitoring',
+setup(name='qwtools',
       version='0.1',
-      description='',
+      description='Python library for monitoring stream-water quality.',
       url='',
       author='Timothy Hodson',
       author_email='thodson@usgs.gov',
       license='GNU',
-      packages=['watershed_monitoring'],
+      packages=['qwtools'],
       zip_safe=False)
